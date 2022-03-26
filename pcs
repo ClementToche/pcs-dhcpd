@@ -75,7 +75,8 @@ function build-nocache(){
 }
 
 function run(){
-    docker run --rm -detach \
+    docker run -detach \
+        --restart=always \
         -p 67:67/udp \
         -p 67:67 \
         --mount type=bind,source=/sys/fs/cgroup,target=/sys/fs/cgroup,readonly \
@@ -100,7 +101,8 @@ function run_it(){
 }
 
 function stop(){
-    docker stop $(docker container ls | grep "${NAME}" | tr -s " " | cut -d ' ' -f1)
+    docker stop "${NAME}"
+    docker rm "${NAME}"
 }
 
 function attach()
