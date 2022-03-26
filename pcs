@@ -20,6 +20,11 @@ function init-pcs(){
         exit -1
     fi
 
+    if [ ! -f ${SCRIPTPATH}/confs/rsyslog/rsyslog.conf ]; then
+        echo "Please create your rsyslog.conf file in ${SCRIPTPATH}/confs/dhcp/dhcpd.conf first !"
+        exit -1
+    fi
+
     if [ -z "$PCS_GID" ]
     then
         echo "$PCS_ID_NAME group don't exist."
