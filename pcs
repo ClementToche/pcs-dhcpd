@@ -1,0 +1,144 @@
+#!/bin/bash
+
+set -e
+
+# keep track of the last executed command
+trap 'last_command=$current_command; current_command=$BASH_COMMAND' DEBUG
+# echo an error message before exiting
+trap 'echo "\"${last_command}\" command filed with exit code $?."' EXIT
+
+NAME=pcs-dhcpd
+VERSION=1.0.0
+PCS_ID_NAME="pcs-dhcp"
+PCS_UID=$(getent passwd $PCS_ID_NAME | cut -d ':' -f 3)
+PCS_GID=$(getent group $PCS_ID_NAME | cut -d ':' -f 3)
+SCRIPTPATH="$( cd -- "$(dirname "$0")" >/dev/null 2>&1 ; pwd -P )"
+
+function init-pcs(){
+    if [ ! -f ${SCRIPTPATH}/confs/dhcp/dhcpd.conf ]; then
+        echo "Please create your dhcpd.conf file in ${SCRIPTPATH}/confs/dhcp/dhcpd.conf first !"
+        exit -1
+    fi
+
+    if [ -z "$PCS_GID" ]
+    then
+        echo "$PCS_ID_NAME group don't exist."
+        while [ -z "${answ}" ]
+        do
+            read -r -p "Create new one ? [y/n]" answ
+        done
+        if [ "${answ}" == "y" ] || [ "${answ}" == "Y" ]
+        then
+            sudo groupadd $PCS_ID_NAME
+        else
+            echo "Can't continue. Abort !"
+            exit -1
+        fi
+    fi
+
+    if [ -z "$PCS_UID" ]
+    then
+        echo "$PCS_ID_NAME user don't exist."
+        while [ -z "${answ}" ]
+        do
+            read -r -p "Create new one ? [y/n]" answ
+        done
+        if [ "${answ}" == "y" ] || [ "${answ}" == "Y" ]
+        then
+            sudo useradd -s /bin/false -g $PCS_ID_NAME $PCS_ID_NAME
+        else
+            echo "Can't continue. Abort !"
+            exit -1
+        fi
+    fi
+}
+
+function build() {
+	docker build -t ${NAME}:${VERSION} --rm \
+        --build-arg PCS_ID_NAME=$PCS_ID_NAME \
+        --build-arg PCS_UID=$(getent passwd $PCS_ID_NAME | cut -d ':' -f 3) \
+        --build-arg PCS_GID=$(getent group $PCS_ID_NAME | cut -d ':' -f 3) \
+        .
+}
+
+function build-nocache(){
+	docker build -t ${NAME}:${VERSION} --no-cache --rm \
+        --build-arg PCS_ID_NAME=$PCS_ID_NAME \
+        --build-arg PCS_UID=$(getent passwd $PCS_ID_NAME | cut -d ':' -f 3) \
+        --build-arg PCS_GID=$(getent group $PCS_ID_NAME | cut -d ':' -f 3) \
+        .
+}
+
+function run(){
+    docker run --rm -detach \
+        -p 67:67/udp \
+        -p 67:67 \
+        --mount type=bind,source=/sys/fs/cgroup,target=/sys/fs/cgroup,readonly \
+        --mount type=bind,source=${SCRIPTPATH}/confs/dhcp,target=/etc/dhcp/ \
+        --mount type=bind,source=${SCRIPTPATH}/confs/rsyslog,target=/etc/rsyslog/ \
+        --net host \
+	    ${NAME}:${VERSION}
+}
+
+function run_it(){
+    docker run --rm -it -detach \
+        -p 67:67/udp \
+        -p 67:67 \
+        --mount type=bind,source=/sys/fs/cgroup,target=/sys/fs/cgroup,readonly \
+        --mount type=bind,source=${SCRIPTPATH}/confs/dhcp,target=/etc/dhcp/ \
+        --mount type=bind,source=${SCRIPTPATH}/confs/rsyslog,target=/etc/rsyslog/ \
+        --net host \
+        --entrypoint "/bin/sh" \
+	    ${NAME}:${VERSION}
+}
+
+function stop(){
+    docker stop $(docker container ls | grep "${NAME}" | tr -s " " | cut -d ' ' -f1)
+}
+
+function attach()
+{
+    docker attach $(docker container ls | grep "${NAME}" | tr -s " " | cut -d ' ' -f1)
+}
+
+function release()
+{
+    git-tag-version: release
+	git tag -a v${VERSION} -m "v${VERSION}"
+	git push origin v${VERSION}
+}
+
+init-pcs
+
+case $1 in
+    "build")
+        if [ "$2" == "force" ]
+        then
+            build-nocache
+        else
+            build
+        fi
+        ;;
+    "run")
+        if [ "$2" == "it" ]
+        then
+            run_it
+            attach
+        else
+            run
+        fi
+        ;;
+    "stop")
+        stop
+        ;;
+    "attach")
+        attach
+        ;;
+    "restart")
+        stop
+        run
+        ;;
+    *)
+        echo Command $1 not found !
+        ;;
+esac
