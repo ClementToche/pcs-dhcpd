@@ -82,6 +82,7 @@ function run(){
         --mount type=bind,source=${SCRIPTPATH}/confs/dhcp,target=/etc/dhcp/ \
         --mount type=bind,source=${SCRIPTPATH}/confs/rsyslog,target=/etc/rsyslog/ \
         --net host \
+        --name ${NAME} \
 	    ${NAME}:${VERSION}
 }
 
@@ -93,6 +94,7 @@ function run_it(){
         --mount type=bind,source=${SCRIPTPATH}/confs/dhcp,target=/etc/dhcp/ \
         --mount type=bind,source=${SCRIPTPATH}/confs/rsyslog,target=/etc/rsyslog/ \
         --net host \
+        --name ${NAME} \
         --entrypoint "/bin/sh" \
 	    ${NAME}:${VERSION}
 }
