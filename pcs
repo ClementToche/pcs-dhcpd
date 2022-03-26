@@ -117,10 +117,32 @@ function release()
 	git push origin v${VERSION}
 }
 
-init-pcs
+function save()
+{
+    cd ${SCRIPTPATH}
+    tar -czf "$(date '+%Y%m%d_%H%M%S')_pcs-dhcp-save.tar.gz" confs/dhcp/ confs/rsyslog
+}
+
+function restore()
+{
+    if [ -z "$1" ]
+    then
+        echo "You need to give the archive file as argument"
+        exit -1
+    fi
+
+    if [ ! -f "$1" ]
+    then
+        echo "File $1 do not exist"
+        exit -1
+    fi
+
+    tar -xf $1
+}
 
 case $1 in
     "build")
+        init-pcs
         if [ "$2" == "force" ]
         then
             build-nocache
@@ -129,6 +151,7 @@ case $1 in
         fi
         ;;
     "run")
+        init-pcs
         if [ "$2" == "it" ]
         then
             run_it
@@ -138,14 +161,24 @@ case $1 in
         fi
         ;;
     "stop")
+        init-pcs
         stop
         ;;
     "attach")
+        init-pcs
         attach
         ;;
     "restart")
+        init-pcs
         stop
         run
+        ;;
+    "save")
+        init-pcs
+        save
+        ;;
+    "restore")
+        restore $2
         ;;
     *)
         echo Command $1 not found !
