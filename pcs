@@ -120,7 +120,7 @@ function release()
 function save()
 {
     cd ${SCRIPTPATH}
-    tar -czf "$(date '+%Y%m%d_%H%M%S')_pcs-dhcp-save.tar.gz" confs/dhcp/ confs/rsyslog
+    tar -czf "$(date '+%Y%m%d_%H%M%S')_${NAME}-save.tar.gz" confs/dhcp/ confs/rsyslog
 }
 
 function restore()
